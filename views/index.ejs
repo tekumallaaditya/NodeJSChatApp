@@ -1,0 +1,154 @@
+<html>
+    <head>
+        <title>chat easy</title>
+        <link rel="stylesheet" href="/css/bootstrap.min.css">
+        <link rel="stylesheet" href="/css/custom.css">
+        <script src="/js/jquery-3.3.1.js"></script>
+        <script src="/js/bootstrap.min.js"></script>       
+        <script src="/socket.io/socket.io.js"></script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="" align = "center" id = "mainPage">
+                    <img src="/images/footprint.jpg" class="img-circle">
+                    <h3>Please enter your desired nickname</h3>
+                    <p id="nameError"></p>
+                    <div class="form-group">
+                        <form id="setName" role="form">
+                            <input type="text" name="name" required id="nickName" placeholder="Enter your name"/>
+                            <button type="submit" value="submit" class="btn btn-success">Enter</button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+        <!--Here ends the main page, and the chat window begins now-->
+        <div id="chatWindow" style="display: none;">
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-6 panel panel-primary col-sm-offset-1">
+                        <div class="panel-body">
+                            <div id="chatWrap" style="min-height: 400; max-height: 400; overflow-y: scroll; border-radius: 10px;
+                            background-color:bisque; background-image: url(/images/footprint.jpg);">
+                            <div id="chat"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4 col-sm-offset-1  panel panel-default">
+                        <div class="panel-heading">
+                            <h4>Currently Online</h4>
+                        </div>
+                        <div class="panel-body">
+                            <div id="users"></div>
+                        </div>
+                    </div>
+                    <div class="col-sm-offset-2">
+                        <h4 align="center">Invite your friends to the chat by clicking <a href="#" target="_blank">Link</a></h4>
+                    </div>                    
+                </div>
+            </div>
+            <br>
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-4 col-md-offset-1">
+                        <form id="message-box">
+                            <div class="form-group">
+                                <textarea style="background-color: goldenrod; border: firebrick; border-radius: 0.5em" name="message" id="message" cols="75" rows="5" placeholder="enter your message"></textarea>
+                            </div>
+                        </form>
+                        <h4>To send a personal message add '@' in before the name and give a space!</h4>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+        
+
+        <script>
+            var socket = io.connect();
+            var myForm = $('#setName');
+            var myName = $('#nickName');
+            var myError = $('#nameError');
+            var users = $('#users');
+            var myMessageBox = $('#message-box');
+            var myMessage = $('#message');
+            var chatOuter = $('#chatWrap');
+            var myChat = $('#chat');
+            var title = 'anonymous';
+
+            myForm.submit(function(e){
+                e.preventDefault();
+                title = myName.val();
+                socket.emit('new user', myName.val(), function(res){
+                    if (res){
+                        $('#mainPage').hide();
+                        document.title = title;
+                        $('#chatWindow').show();
+                    } else {
+                        myError.html('sorry, that name has already been taken. Try another one!');
+                    }                    
+                });
+                myName.val('');
+            });
+
+            socket.on('userName', function(data){
+                var html = '<ul>';                
+                    for (var i = 0; i < data.length; i++){
+                        html = html + '<li>'+ data[i] + '</li>';                        
+                    }
+                    html = html + '</ul>';
+                    users.html(html);              
+            });
+
+            $('#message').keydown(function(event) {
+            if (event.keyCode == 13) {
+                $(this.form).submit()
+                return false;
+                }
+            });
+
+            myMessageBox.submit(function(e){
+                console.log('submitting the message form');
+                e.preventDefault();
+                socket.emit('send message', myMessage.val(), function(data){
+                    console.log('got back form response from the server');
+                    myChat.append('<p align="right">' +data+ '</p><br/>');                    
+                });
+                myMessage.val('');
+            });
+            
+
+            socket.on('new message', function(data){
+                console.log('title is ->',title);
+                if (data.nick === title){
+                    myChat.append('<p align="right">' + data.nick + ' : <b>' + data.msg + '</p>');
+                } else {
+                    myChat.append('<p align="left">' + data.nick + ' : <b>' + data.msg + '</p>');
+                }
+                scrollCorrect();
+            });
+
+            socket.on('whisper', function(data){
+                myChat.append('<p>' + data.nick + ': <b>' + data.msg + '</p><br/>');
+            })
+
+            socket.on('private', function(data){
+                myChat.append('<p>' + data.nick + ': <b>' + data.msg + '</p><br/>');
+            })
+
+            function scrollCorrect(){
+                chatOuter.scrollTop(myChat.outerHeight());
+            }
+            
+
+
+
+        </script>
+
+    </body>
+</html>
